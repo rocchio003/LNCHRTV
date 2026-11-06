@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
@@ -48,11 +49,11 @@ import java.util.Locale
 /* 1 unità "rem" del mockup = 1% della larghezza dello schermo (16:9) */
 val LocalUnit = compositionLocalOf { 9.6.dp }
 val LocalAccent = compositionLocalOf { Color(0xFF58A6FF) }
-private val Ink = Color(0xFFEEF2F8)
-private val Muted = Color(0xFF94A3B8)
-private val Line = Color.White.copy(alpha = .09f)
-private val LineSoft = Color.White.copy(alpha = .055f)
-private val Sub = Color(0xFFA9BBD2)
+val Ink = Color(0xFFEEF2F8)
+val Muted = Color(0xFF94A3B8)
+val Line = Color.White.copy(alpha = .09f)
+val LineSoft = Color.White.copy(alpha = .055f)
+val Sub = Color(0xFFA9BBD2)
 
 @Composable fun r(v: Float): Dp = LocalUnit.current * v
 @Composable fun fs(v: Float): TextUnit = with(LocalDensity.current) { r(v).toSp() }
@@ -93,9 +94,12 @@ fun NuvixApp() {
     BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF03050A)), contentAlignment = Alignment.Center) {
         val w = minOf(maxWidth, maxHeight * (16f / 9f))
         CompositionLocalProvider(LocalUnit provides w / 100, LocalAccent provides accent) {
-            Screen(Modifier.size(w, w * 9f / 16f), apps) { c ->
-                accent = c
-                prefs.edit().putInt("accent", c.toArgb()).apply()
+            Box(Modifier.size(w, w * 9f / 16f)) {
+                Screen(Modifier.fillMaxSize().focusProperties { canFocus = !(Iptv.fullscreen || Iptv.settingsOpen) }, apps) { c ->
+                    accent = c
+                    prefs.edit().putInt("accent", c.toArgb()).apply()
+                }
+                IptvOverlays()
             }
         }
     }
@@ -203,7 +207,7 @@ fun Header(onAccent: (Color) -> Unit) {
         Row(Modifier.clip(navShape).background(Color.White.copy(alpha = .04f)).border(1.dp, LineSoft, navShape)
             .padding(r(.34f)), horizontalArrangement = Arrangement.spacedBy(r(.35f))) {
             listOf("Home", "Guida", "Film e Serie", "App", "Libreria").forEachIndexed { i, t ->
-                Box(Modifier.tv(RoundedCornerShape(r(.85f)))
+                Box(Modifier.tv(RoundedCornerShape(r(.85f))) { if (i == 1) Iptv.fullscreen = true }
                     .then(if (i == 0) Modifier.background(a) else Modifier)
                     .padding(horizontal = r(1f), vertical = r(.52f))) {
                     T(t, 1.02f, if (i == 0) Color(0xFF0A0E16) else Muted, FontWeight.Medium)
@@ -229,7 +233,7 @@ fun Header(onAccent: (Color) -> Unit) {
                 drawLine(Ink, Offset(s * .7f, s * .7f), Offset(s * .92f, s * .92f), strokeWidth = s * .09f)
             }
         }
-        Box(Modifier.size(r(2.4f)).tv(CircleShape).background(Brush.linearGradient(listOf(a, Color(0xFF9F8CFF)))),
+        Box(Modifier.size(r(2.4f)).tv(CircleShape) { Iptv.settingsOpen = true }.background(Brush.linearGradient(listOf(a, Color(0xFF9F8CFF)))),
             contentAlignment = Alignment.Center) { T("M", .95f, Color(0xFF0A0E16), FontWeight.SemiBold) }
     }
 }
@@ -267,16 +271,12 @@ fun IptvPanel() {
                     }
                 }
             }
-            Column(Modifier.weight(1f).fillMaxWidth()
+            GuideList(Modifier.weight(1f).fillMaxWidth()
                 .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                 .drawWithContent {
                     drawContent()
                     drawRect(Brush.verticalGradient(.78f to Color.Black, 1f to Color.Transparent), blendMode = BlendMode.DstIn)
-                }
-                .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(r(.38f))) {
-                GUIDE.forEachIndexed { i, g -> GuideRow(g, i == 0) }
-            }
+                }, false) { Iptv.fullscreen = true }
         }
     }
 }
